@@ -46,4 +46,29 @@ public class TicketsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<TicketDetailResponse>> Resolve(int id, CancellationToken cancellationToken)
         => Ok(await _tickets.ResolveAsync(id, cancellationToken));
+        
+    // Assign a ticket to an agent
+    [HttpPost("{id:int}/assign")]
+    [ProducesResponseType(typeof(TicketDetailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<TicketDetailResponse>> Assign(
+        int id,
+        [FromBody] AssignTicketRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.AgentId is null)
+        {
+            return BadRequest("AgentId is required.");
+        }
+
+        var ticket = await _tickets.AssignAsync(
+            id,
+            request.AgentId.Value,
+            cancellationToken);
+
+        return Ok(ticket);
+    }
+    
 }

@@ -54,3 +54,10 @@ public class TicketQueueRequest
     [Range(1, 200)]
     public int PageSize { get; set; } = 20;
 }
+
+public class AssignTicketRequest
+{
+    [Required]
+    public int? AgentId { get; set; }
+}
+

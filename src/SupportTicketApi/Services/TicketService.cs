@@ -29,8 +29,12 @@ public class TicketService : ITicketService
         var totalCount = await query.CountAsync(cancellationToken);
 
         var items = await query
-            .OrderByDescending(t => t.Priority)
-            .ThenByDescending(t => t.CreatedUtc)
+            .OrderByDescending(t =>
+                t.Priority == TicketPriority.Urgent ? 3 :
+                t.Priority == TicketPriority.High   ? 2 :
+                t.Priority == TicketPriority.Normal ? 1 :
+                                                    0)
+            .ThenBy(t => t.CreatedUtc)
             .Skip((request.Page - 1) * request.PageSize)
             .Take(request.PageSize)
             .Select(t => new TicketSummaryResponse(
@@ -122,4 +126,43 @@ public class TicketService : ITicketService
         ticket.AssignedAgent?.Name,
         ticket.CreatedUtc,
         ticket.ResolvedUtc);
+
+    public async Task<TicketDetailResponse> AssignAsync(int id, int agentId, CancellationToken cancellationToken)
+    {
+        var ticket = await _db.Tickets
+            .Include(t => t.AssignedAgent)
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
+
+        if (ticket is null)
+        {
+            throw new NotFoundException($"Ticket {id} was not found.");
+        }
+
+        var agent = await _db.Agents
+            .FirstOrDefaultAsync(a => a.Id == agentId, cancellationToken);
+
+        if (agent is null)
+        {
+            throw new NotFoundException($"Agent {agentId} was not found.");
+        }
+
+        if (ticket.Status is TicketStatus.Resolved or TicketStatus.Closed)
+        {
+            throw new ConflictException($"Ticket {ticket.Reference} is already {ticket.Status}.");
+        }
+
+        if (!agent.IsActive)
+        {
+            throw new ConflictException("Agent is inactive");
+        }
+
+        ticket.Status = TicketStatus.Assigned;
+
+        ticket.AssignedAgentId = agent.Id;
+        ticket.AssignedAgent = agent;
+
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Map(ticket);
+    }
 }

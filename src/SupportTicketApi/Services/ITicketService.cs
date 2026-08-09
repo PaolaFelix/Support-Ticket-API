@@ -13,4 +13,6 @@ public interface ITicketService
         CreateTicketRequest request, CancellationToken cancellationToken);
 
     Task<TicketDetailResponse> ResolveAsync(int id, CancellationToken cancellationToken);
+
+    Task<TicketDetailResponse> AssignAsync(int id, int agentId, CancellationToken cancellationToken);
 }
